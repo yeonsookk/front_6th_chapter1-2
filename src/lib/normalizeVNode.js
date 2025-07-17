@@ -9,18 +9,12 @@ export function normalizeVNode(vNode) {
     return String(vNode);
   }
 
-  // 배열 처리
+  // 배열 처리 - 평탄화
   if (Array.isArray(vNode)) {
-    const normalizedChildren = vNode.map((child) => normalizeVNode(child)).filter((child) => child !== "");
-
-    if (normalizedChildren.length === 0) {
-      return "";
-    }
-
-    if (normalizedChildren.length === 1) {
-      return normalizedChildren[0];
-    }
-
+    const flattened = vNode.flat(Infinity);
+    const normalizedChildren = flattened.map((child) => normalizeVNode(child)).filter((child) => child !== "");
+    if (normalizedChildren.length === 0) return "";
+    if (normalizedChildren.length === 1) return normalizedChildren[0];
     return normalizedChildren;
   }
 
@@ -32,17 +26,21 @@ export function normalizeVNode(vNode) {
   // 함수형 컴포넌트 처리
   if (typeof vNode.type === "function") {
     const component = vNode.type;
-    const props = vNode.props || {};
+    const props = { ...(vNode.props || {}), children: vNode.children };
     const result = component(props);
     // 컴포넌트 실행 결과를 재귀적으로 정규화
     return normalizeVNode(result);
   }
-
-  // 일반 엘리먼트 처리
-  const normalizedChildren = vNode.children
-    ? vNode.children.map((child) => normalizeVNode(child)).filter((child) => child !== "")
-    : [];
-
+  // 여기서 children이 배열이 아닐 수도 있으니 분기!
+  let normalizedChildren = [];
+  if (vNode.children !== undefined && vNode.children !== null) {
+    if (Array.isArray(vNode.children)) {
+      normalizedChildren = vNode.children.map((child) => normalizeVNode(child)).filter((child) => child !== "");
+    } else {
+      const norm = normalizeVNode(vNode.children);
+      if (norm !== "") normalizedChildren = [norm];
+    }
+  }
   return {
     type: vNode.type,
     props: vNode.props,
